@@ -1,0 +1,62 @@
+# Node.js
+# Build a general Node.js project with npm.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+- main
+
+pool:
+  name: Azure Pipelines
+
+stages:
+- stage: Build
+  displayName: 'Build Stage'
+  jobs:
+  - job: BuildJob
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '16.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        npm install
+        npm run build
+        npm test
+      displayName: 'Build and Test'
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/TEST-*.xml'
+      displayName: 'Publish Test Results'
+
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: true
+      displayName: 'Archive Build Output'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'drop'
+      displayName: 'Publish Artifacts'
+
+- stage: Deploy
+  displayName: 'Deploy Stage'
+  dependsOn: Build
+  jobs:
+  - job: DeployJob
+    steps:
+    - task: AzureWebApp@1
+      inputs:
+        azureSubscription: 'ARM-connection-Cyreal06'
+        appType: 'webAppLinux'
+        appName: 'cyreal06'
+        package: '$(Pipeline.Workspace)/drop/$(Build.BuildId).zip'
+      displayName: 'Deploy to Azure Web App'
