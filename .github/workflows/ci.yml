@@ -1,9 +1,9 @@
 name: Build, Test, and Deploy
 
 on:
-  pull_request:
-    branches: [ main ]
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 jobs:
@@ -30,23 +30,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      # Optional: if your app has a build step (e.g., TypeScript, React)
+      - name: Build app
+        run: |
+          if [ -f package.json ] && grep -q "\"build\"" package.json; then
+            npm run build
+          else
+            echo "No build step found, skipping."
+          fi
 
       - name: Run tests
         run: npm test
 
-      # ✅ Archive the build output for deployment
+      # ✅ Archive the full app (including src/)
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifact
+          name: node-app
           path: |
-            build
-            dist
-            public
-            package.json
-            package-lock.json
+            .
+          if-no-files-found: error
 
   deploy:
     needs: build-and-test
@@ -56,7 +59,7 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: build-artifact
+          name: node-app
           path: .
 
       - name: Deploy to Azure Web App
